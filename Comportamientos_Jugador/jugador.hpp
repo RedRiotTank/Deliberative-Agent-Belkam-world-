@@ -18,8 +18,13 @@ class ComportamientoJugador : public Comportamiento {
     }
     ComportamientoJugador(std::vector< std::vector< unsigned char> > mapaR) : Comportamiento(mapaR) {
       // Inicializar Variables de Estado
+      
     }
-    ComportamientoJugador(const ComportamientoJugador & comport) : Comportamiento(comport){}
+    ComportamientoJugador(const ComportamientoJugador & comport) : Comportamiento(comport){
+      hayPlan = false;
+    }
+    
+   
     ~ComportamientoJugador(){}
 
     Action think(Sensores sensores);
@@ -32,6 +37,7 @@ class ComportamientoJugador : public Comportamiento {
     estado actual;
     list<estado> objetivos;
     list<Action> plan;
+    bool hayPlan;
 
     // Métodos privados de la clase
     bool pathFinding(int level, const estado &origen, const list<estado> &destino, list<Action> &plan);

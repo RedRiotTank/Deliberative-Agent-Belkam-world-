@@ -31,9 +31,19 @@ Action ComportamientoJugador::think(Sensores sensores)
 		aux.columna = sensores.destino[2 * i + 1];
 		objetivos.push_back(aux);
 	}
+	
+	if(!hayPlan)
+	 hayPlan = pathFinding(sensores.nivel, actual, objetivos, plan);
+	
 
-	bool hay_plan = pathFinding(sensores.nivel, actual, objetivos, plan);
+	//Action sigAccion;
+	if(hayPlan and plan.size()>0){//hay plan no vacio
+		accion = plan.front();
+		plan.erase(plan.begin());
 
+	} else {
+		cout << "no se pudo encontrar un plan \n";
+	}
 	return accion;
 }
 
