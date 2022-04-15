@@ -7,13 +7,14 @@
 #include <stack>
 #include <queue>
 
+
+
 // Este es el método principal que se piden en la practica.
 // Tiene como entrada la información de los sensores y devuelve la acción a realizar.
 // Para ver los distintos sensores mirar fichero "comportamiento.hpp"
 Action ComportamientoJugador::think(Sensores sensores)
 {
 	Action accion = actIDLE;
-
 	actual.fila = sensores.posF;
 	actual.columna = sensores.posC;
 	actual.orientacion = sensores.sentido;
@@ -72,8 +73,10 @@ bool ComportamientoJugador::pathFinding(int level, const estado &origen, const l
 		break;
 	case 2:
 		cout << "Optimo en coste\n";
-		// Incluir aqui la llamada al busqueda de costo uniforme/A*
-		cout << "No implementado aun\n";
+		un_objetivo = objetivos.front();
+		cout << "fila: " << un_objetivo.fila << " col:" << un_objetivo.columna << endl;
+		return pathFinding_CostoUniforme(origen, un_objetivo, plan,mapaResultado);
+		
 		break;
 	case 3:
 		cout << "Reto 1: Descubrir el mapa\n";
@@ -219,8 +222,85 @@ bool ComportamientoJugador::ObstaculoAvanceBat(estado &st){
 }
 struct nodo
 {
+	int coste;
 	estado st;
 	list<Action> secuencia;
+};
+
+int calcularCoste(nodo n, vector< vector< unsigned char>> &mapa){
+	
+	switch (n.secuencia.front())
+	{
+		case actIDLE:
+			return 0;
+			break;
+		case actWHEREIS:
+			return 200;
+			break;
+		case actFORWARD:
+
+			if(mapa[n.st.fila][n.st.columna] == 'A')
+				return 200;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'B')
+				return 100;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'T')
+				return 2;
+			else
+				return 1;
+
+			break;
+		case actTURN_L or actTURN_R:
+			if(mapa[n.st.fila][n.st.columna] == 'A')
+				return 500;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'B')
+				return 3;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'T')
+				return 2;
+			else
+				return 1;
+			break;
+		case actSEMITURN_L:
+			if(mapa[n.st.fila][n.st.columna] == 'A')
+				return 300;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'B')
+				return 2;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'T')
+				return 1;
+			else
+				return 1;
+			break;
+		case actSEMITURN_R:
+			if(mapa[n.st.fila][n.st.columna] == 'A')
+				return 300;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'B')
+				return 2;
+			
+			else if(mapa[n.st.fila][n.st.columna] == 'T')
+				return 1;
+			else
+				return 1;
+			break;
+		
+	}
+
+
+
+}
+
+
+struct ComparaBateria
+{
+	bool operator()(const nodo &a, const nodo &n) const
+	{
+		return a.coste > n.coste; // menor a mayor.
+	}
 };
 
 struct ComparaEstados
@@ -427,7 +507,102 @@ bool ComportamientoJugador::pathFinding_Anchura(const estado &origen, const esta
 }
 
 
+bool ComportamientoJugador::pathFinding_CostoUniforme(const estado &origen, const estado &destino, list<Action> &plan, vector< vector< unsigned char>> mapa){
+	cout << "Calculando plan\n";
 
+	plan.clear();
+
+	priority_queue<nodo,vector<nodo>, ComparaBateria> Abiertos;
+	set<estado, ComparaEstados> Cerrados;
+
+	nodo current;
+	current.st = origen;
+	current.secuencia.empty();		
+	current.coste = 0;
+
+	Abiertos.push(current);
+
+	while (!Abiertos.empty() and (current.st.fila != destino.fila or current.st.columna != destino.columna)){
+	
+		current = Abiertos.top();
+		Abiertos.pop();
+		Cerrados.insert(current.st);
+		
+		// Generar descendiente de girar a la derecha 90 grados
+		nodo hijoTurnR = current;
+		hijoTurnR.st.orientacion = (hijoTurnR.st.orientacion + 2) % 8;
+		if (Cerrados.find(hijoTurnR.st) == Cerrados.end())
+		{
+			hijoTurnR.coste += calcularCoste(hijoTurnR, mapa);
+			hijoTurnR.secuencia.push_back(actTURN_R);
+			Abiertos.push(hijoTurnR);
+		}
+
+		// Generar descendiente de girar a la derecha 45 grados
+		nodo hijoSEMITurnR = current;
+		hijoSEMITurnR.st.orientacion = (hijoSEMITurnR.st.orientacion + 1) % 8;
+		if (Cerrados.find(hijoSEMITurnR.st) == Cerrados.end())
+		{	
+			hijoSEMITurnR.coste += calcularCoste(hijoTurnR,mapa);
+			hijoSEMITurnR.secuencia.push_back(actSEMITURN_R);
+			Abiertos.push(hijoSEMITurnR);
+		}
+
+		// Generar descendiente de girar a la izquierda 90 grados
+		nodo hijoTurnL = current;
+		hijoTurnL.st.orientacion = (hijoTurnL.st.orientacion + 6) % 8;
+		if (Cerrados.find(hijoTurnL.st) == Cerrados.end())
+		{
+			hijoTurnL.coste += calcularCoste(hijoTurnR,mapa);
+			hijoTurnL.secuencia.push_back(actTURN_L);
+			Abiertos.push(hijoTurnL);
+		}
+
+		// Generar descendiente de girar a la izquierda 45 grados
+		nodo hijoSEMITurnL = current;
+		hijoSEMITurnL.st.orientacion = (hijoSEMITurnL.st.orientacion + 7) % 8;
+		if (Cerrados.find(hijoSEMITurnL.st) == Cerrados.end())
+		{
+			hijoSEMITurnL.coste += calcularCoste(hijoTurnR,mapa);
+			hijoSEMITurnL.secuencia.push_back(actSEMITURN_L);
+			Abiertos.push(hijoSEMITurnL);
+		}
+
+		// Generar descendiente de avanzar
+		nodo hijoForward = current;
+		if (!HayObstaculoDelante(hijoForward.st) /*and (!ObstaculoAvanceBat(hijoForward.st))*/)
+		{
+			if (Cerrados.find(hijoForward.st) == Cerrados.end())
+			{
+				hijoForward.coste += calcularCoste(hijoTurnR,mapa);
+				hijoForward.secuencia.push_back(actFORWARD);
+				Abiertos.push(hijoForward);
+			}
+		}
+		
+		
+	}
+
+	cout << "Terminada la busqueda\n";
+	if (current.st.fila == destino.fila and current.st.columna == destino.columna)
+	{
+		cout << "Cargando el plan\n";
+		plan = current.secuencia;
+		cout << "Longitud del plan: " << plan.size() << endl;
+		PintaPlan(plan);
+		// ver el plan en el mapa
+		VisualizaPlan(origen, plan);
+		return true;
+	}
+	else
+	{
+		cout << "No encontrado plan\n";
+	}
+
+	return false;
+
+	
+}
 // Sacar por la consola la secuencia del plan obtenido
 void ComportamientoJugador::PintaPlan(list<Action> plan)
 {
@@ -543,3 +718,4 @@ int ComportamientoJugador::interact(Action accion, int valor)
 {
 	return false;
 }
+
